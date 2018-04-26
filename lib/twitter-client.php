@@ -1,40 +1,37 @@
 <?php
 
 define('TWITTER_API_TIMEOUT', 5 );  
-
 define('TWITTER_API_USERAGENT', 'PHP/'.PHP_VERSION.'; http://github.com/timwhitlock/php-twitter-api' );  
-
 define('TWITTER_API_BASE', 'https://api.twitter.com/1.1' );
-
 define('TWITTER_OAUTH_REQUEST_TOKEN_URL', 'https://twitter.com/oauth/request_token');
-
 define('TWITTER_OAUTH_AUTHORIZE_URL', 'https://twitter.com/oauth/authorize');
-
 define('TWITTER_OAUTH_AUTHENTICATE_URL', 'https://twitter.com/oauth/authenticate');
-
-define('TWITTER_OAUTH_ACCESS_TOKEN_URL', 'https://twitter.com/oauth/access_token');
- 
-
-
+define('TWITTER_OAUTH_ACCESS_TOKEN_URL', 'https://twitter.com/oauth/access_token'); 
 
 class TwitterApiClient {
-
+    
     private $Consumer;
-
+   
     private $AccessToken;
     
+  
     private $cache_ttl = null;
+    
     
     private $cache_ns;     
     
+   
     private $last_rate = array();    
     
+    
     private $last_call;     
-
+    
+  
     public function __sleep(){
        return array('Consumer','AccessToken');
     }
     
+   
     public function enable_cache( $ttl = 0, $namespace = 'twitter_api_' ){
        if( function_exists('apc_store') ){
           $this->cache_ttl = (int) $ttl;
@@ -45,22 +42,23 @@ class TwitterApiClient {
        return $this->disable_cache();
     }
     
+   
     public function disable_cache(){
        $this->cache_ttl = null;
        $this->cache_ns  = null;
        return $this;
     }
-
+    
     public function has_auth(){
         return $this->AccessToken instanceof TwitterOAuthToken && $this->AccessToken->secret;
     }    
+    
     
     public function deauthorize(){
         $this->AccessToken = null;
         return $this;
     }
-
-
+    
     public function set_oauth( $consumer_key, $consumer_secret, $access_key = '', $access_secret = '' ){
         $this->deauthorize();
         $this->Consumer = new TwitterOAuthToken( $consumer_key, $consumer_secret );
@@ -70,24 +68,24 @@ class TwitterApiClient {
         return $this;
     }
     
-
+    
     public function set_oauth_consumer( TwitterOAuthToken $token ){
         $this->Consumer = $token;
         return $this;
     }
     
+    
     public function set_oauth_access( TwitterOAuthToken $token ){
         $this->AccessToken = $token;
         return $this;
     }
-
+    
     
     public function get_oauth_request_token( $oauth_callback = 'oob' ){
         $params = $this->oauth_exchange( TWITTER_OAUTH_REQUEST_TOKEN_URL, compact('oauth_callback') );
         return new TwitterOAuthToken( $params['oauth_token'], $params['oauth_token_secret'] );
     }
-
-
+   
     public function get_oauth_access_token( $oauth_verifier ){
         $params = $this->oauth_exchange( TWITTER_OAUTH_ACCESS_TOKEN_URL, compact('oauth_verifier') );
         $token = new TwitterOAuthToken( $params['oauth_token'], $params['oauth_token_secret'] );
@@ -100,6 +98,7 @@ class TwitterApiClient {
     
     
     private function sanitize_args( array $_args ){
+       
         $args = array();
         foreach( $_args as $key => $val ){
             if( is_string($val) ){
@@ -122,9 +121,10 @@ class TwitterApiClient {
     }    
     
     
+  
     public function call( $path, array $args = array(), $http_method = 'GET' ){
         $args = $this->sanitize_args( $args );
-        // Fetch response from cache if possible / allowed / enabled
+        
         if( $http_method === 'GET' && isset($this->cache_ttl) ){
            $cachekey = $this->cache_ns.$path.'_'.md5( serialize($args) );
            if( preg_match('/^(\d+)-/', $this->AccessToken->key, $reg ) ){
@@ -136,9 +136,10 @@ class TwitterApiClient {
            }
         }
         $http = $this->rest_request( $path, $args, $http_method );
-        // Deserialize response
+        
         $status = $http['status'];
         $data = json_decode( $http['body'], true );
+        
         if( ! is_array($data) ){
             $err = array( 
                 'message' => $http['error'], 
@@ -146,6 +147,7 @@ class TwitterApiClient {
             );
             TwitterApiException::chuck( $err, $status );
         }
+       
         if( isset( $data['errors'] ) ) {
             while( $err = array_shift($data['errors']) ){
                 $err['message'] = $err['message'];
@@ -163,17 +165,14 @@ class TwitterApiClient {
         }
         return $data;
     }
-
-
-
+ 
     public function raw( $path, array $args = array(), $http_method = 'GET' ){
         $args = $this->sanitize_args( $args );
         return $this->rest_request( $path, $args, $http_method );
     }
-
-
-
+    
     private function oauth_exchange( $endpoint, array $args ){
+       
         $params = new TwitterOAuthParams( $args );
         $params->set_consumer( $this->Consumer );
         if( $this->AccessToken ){
@@ -188,6 +187,7 @@ class TwitterApiClient {
         $body = trim( $http['body'] );
         $stat = $http['status'];
         if( 200 !== $stat ){
+          
             if( 0 === strpos($body, '<?') ){
                 $xml = simplexml_load_string($body);
                 $body = (string) $xml->error;
@@ -202,13 +202,17 @@ class TwitterApiClient {
     }
     
     
+   
     private function rest_request( $path, array $args, $http_method ){
+       
         if( ! $this->has_auth() ){
             throw new TwitterApiException( 'Twitter client not authenticated', 0, 401 );
         }
+        
         $conf = array (
             'method' => $http_method,
         );
+
         $endpoint = TWITTER_API_BASE.'/'.$path.'.json';
         $params = new TwitterOAuthParams( $args );
         $params->set_consumer( $this->Consumer );
@@ -221,6 +225,7 @@ class TwitterApiClient {
             $conf['body'] = $params->serialize();
         }
         $http = self::http_request( $endpoint, $conf );        
+    
         $this->last_call = $path;
         if( isset($http['headers']['x-rate-limit-limit']) ) {
             $this->last_rate[$path] = array (
@@ -231,9 +236,9 @@ class TwitterApiClient {
         }
         return $http;
     }    
-
-
+    
     public static function http_request( $endpoint, array $conf ){
+
         $conf += array(
             'body' => '',
             'method'  => 'GET',
@@ -266,6 +271,7 @@ class TwitterApiClient {
             curl_setopt( $ch, CURLOPT_HTTPHEADER, $headers );
         }
         
+       
         $response = curl_exec( $ch );
         if ( 60 === curl_errno($ch) ) { 
             curl_setopt( $ch, CURLOPT_CAINFO, __DIR__.'/ca-chain-bundle.crt');
@@ -295,8 +301,7 @@ class TwitterApiClient {
             'headers' => $headers,
         );
     }
-
-
+    
     public function last_rate_limit_data( $func = '' ){
         $func or $func = $this->last_call;
         return isset($this->last_rate[$func]) ? $this->last_rate[$func] : array( 'limit' => 0 );
@@ -306,30 +311,23 @@ class TwitterApiClient {
         $data = $this->last_rate_limit_data($func);
         return isset($data['limit']) ? $data['limit'] : null;
     }
-    
-    
+       
     public function last_rate_limit_remaining( $func = '' ){
         $data = $this->last_rate_limit_data($func);
         return isset($data['remaining']) ? $data['remaining'] : null;
     }
     
-    
     public function last_rate_limit_reset( $func = '' ){
         $data = $this->last_rate_limit_data($func);
         return isset($data['reset']) ? $data['reset'] : null;
     }
-
 }
 
-
-
 class TwitterOAuthToken {
-
     public $key;
     public $secret;
     public $verifier;
     public $user;
-
     public function __construct( $key, $secret = '' ){
         if( ! $key ){
            throw new Exception( 'Invalid OAuth token - Key required even if secret is empty' );
@@ -338,18 +336,13 @@ class TwitterOAuthToken {
         $this->secret = $secret;
         $this->verifier = '';
     }
-
     public function get_authorization_url(){
         return TWITTER_OAUTH_AUTHORIZE_URL.'?oauth_token='.rawurlencode($this->key);
     }
-
     public function get_authentication_url(){
         return TWITTER_OAUTH_AUTHENTICATE_URL.'?oauth_token='.rawurlencode($this->key);
     }
-
 }
-
-
 
 class TwitterOAuthParams {
     
@@ -394,7 +387,6 @@ class TwitterOAuthParams {
         $str = str_replace( array('+','%7E'), array('%20','~'), $str );
         return $str;
     }
-
     public function sign_hmac( $http_method, $http_rsc ){
         $this->args['oauth_signature_method'] = 'HMAC-SHA1';
         $this->args['oauth_timestamp'] = sprintf('%u', time() );
@@ -407,7 +399,6 @@ class TwitterOAuthParams {
         $this->args['oauth_signature'] = base64_encode( hash_hmac( 'sha1', $str, $key, true ) );
         return $this->args;
     }
-
     public function oauth_header(){
         $lines = array();
         foreach( $this->args as $key => $val ){
@@ -415,13 +406,7 @@ class TwitterOAuthParams {
         }
         return 'OAuth '.implode( ",\n ", $lines );
     }
-
 }
-
-
-
-
-
 
 function _twitter_api_http_status_text( $s ){
     static $codes = array (
@@ -475,12 +460,9 @@ function _twitter_api_http_status_text( $s ){
     return  isset($codes[$s]) ? $codes[$s] : sprintf('Status %u from Twitter', $s );
 }
 
-
-
 class TwitterApiException extends Exception {
 
     protected $status = 0;        
-
         
     public static function chuck( array $err, $status ){
         $code = isset($err['code']) ? (int) $err['code'] : -1;
@@ -492,8 +474,7 @@ class TwitterApiException extends Exception {
         $eclass = isset($classes[$status]) ? $classes[$status] : __CLASS__;
         throw new $eclass( $mess, $code, $status );
     }
-        
-        
+               
     public function __construct( $message, $code = 0 ){
         if( 2 < func_num_args() ){
             $this->status = (int) func_get_arg(2);
@@ -504,19 +485,18 @@ class TwitterApiException extends Exception {
         parent::__construct( $message, $code );
     }
     
-    
     public function getStatus(){
         return $this->status;
     }
     
 }
 
-
+/** 404 */
 class TwitterApiNotFoundException extends TwitterApiException {
     
 }
 
-
+/** 429 */
 class TwitterApiRateLimitException extends TwitterApiException {
     
 }
