@@ -1,7 +1,7 @@
 # 500Crawler
 
 The user interface provides you with two options: search by keyword or select an SP500 twitter handle.
-The url for the web application is https://web.njit.edu/~vvk34/
+The url for the web application is https://web.njit.edu/~vvk34/index.php
 
 HANDLE:
 - Selecting handle will provide you with a dropdown menu of twitter handles.
