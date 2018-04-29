@@ -17,3 +17,4 @@ KEYWORD:
 RESULTS PAGE
 - This page will display the collected tweets with the sentiment analysis given, either positive (green), neutral (white), or negative (red) with color codes, timestamp of the tweet, link of real tweet on the twitter and the user handle who has posted that tweet.
   
+Note : Due to the slow response from Twitter API, it takes time for the web application to fetch the tweets and that is why we are displaying 100 tweets. Please wait for the results to be displayed on the page.
